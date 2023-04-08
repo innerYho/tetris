@@ -1,5 +1,6 @@
+// import 'dart:js';
 import 'dart:math';
-
+// import 'package:path/path.dart';
 import 'package:flutter/material.dart';
 
 class TetrisGame extends StatefulWidget {
@@ -12,7 +13,8 @@ class TetrisGame extends StatefulWidget {
 class _TetrisGameState extends State<TetrisGame> {
   ValueNotifier<List<BrickObjectPos>> brickObjectPosValue =
       ValueNotifier<List<BrickObjectPos>>(List<BrickObjectPos>.from([]));
-
+//provide access to otrher objects
+  GlobalKey<_TetrisWidgetState> keyGlobal = GlobalKey();
   @override
   void initState() {
     super.initState();
@@ -20,6 +22,7 @@ class _TetrisGameState extends State<TetrisGame> {
 
   @override
   Widget build(BuildContext context) {
+    const double sizePerSquare = 40;
     return Scaffold(
       body: Container(
           color: Colors.blue,
@@ -57,12 +60,24 @@ class _TetrisGameState extends State<TetrisGame> {
                                           MainAxisAlignment.spaceEvenly,
                                       children: [
                                         ElevatedButton(
+                                          style: ButtonStyle(
+                                            backgroundColor:
+                                                MaterialStateColor.resolveWith(
+                                              (states) => Colors.red[900]!,
+                                            ),
+                                          ),
                                           onPressed: () {
                                             print("Reset"); //not in production
                                           },
                                           child: Text("Score: ${null ?? 0}"),
                                         ),
                                         ElevatedButton(
+                                          style: ButtonStyle(
+                                            backgroundColor:
+                                                MaterialStateColor.resolveWith(
+                                              (states) => Colors.red[900]!,
+                                            ),
+                                          ),
                                           onPressed: () {
                                             print("Start"); //not in production
                                           },
@@ -114,13 +129,184 @@ class _TetrisGameState extends State<TetrisGame> {
                         child: Container(
                       width: double.maxFinite,
                       color: Colors.greenAccent,
-                      child: const Text("Set Tetris widget here"),
+                      //Set Tetris widget here
+                      child: LayoutBuilder(builder: (context, constraints) {
+                        return TetrisWidget(
+                            //sent size
+                            constraints.biggest,
+                            key: keyGlobal,
+                            sizePerSquare: sizePerSquare, //size per box brick
+                            //Make callback for next brick show after generate on widget
+                            setNextBrick:
+                                (List<BrickObjectPos> brickObjectPos) {
+                          brickObjectPosValue.value = brickObjectPos;
+                          //Notify the client when the object may have change
+                          brickObjectPosValue.notifyListeners();
+                        });
+                      }),
                     ))
                   ],
                 );
               },
             ),
           )),
+    );
+  }
+}
+
+class TetrisWidget extends StatefulWidget {
+  // const TetrisWidget(Size biggest, {super.key, required Null Function(List<BrickObjectPos> brickObjectPos) setNextBrick});
+  final Size size;
+  final double? sizePerSquare;
+  Function(List<BrickObjectPos> brickObjectPos)? setNextBrick;
+
+  TetrisWidget(this.size, {Key? key, this.setNextBrick, this.sizePerSquare})
+      : super(key: key);
+
+  @override
+  State<TetrisWidget> createState() => _TetrisWidgetState();
+}
+
+class _TetrisWidgetState extends State<TetrisWidget>
+    with SingleTickerProviderStateMixin {
+  //set animation & controller animation
+  late Animation<double> animation;
+  late AnimationController animationController;
+
+  //declare all parameter
+  late Size sizeBox;
+
+//all brick generated will saved here
+  ValueNotifier<List<BrickObjectPos>> brickObjectPosValue =
+      ValueNotifier<List<BrickObjectPos>>([]);
+
+  //for point alredy done
+  ValueNotifier<List<BrickObjectPosDone>> donePointsValue =
+      ValueNotifier<List<BrickObjectPosDone>>([]);
+
+//our index point array for base or walls
+  late List<int> levelBases;
+  ValueNotifier<int> animationPosTickValue = ValueNotifier<int>(0);
+
+  @override
+  void initState() {
+    super.initState();
+
+    //calculatesize box base size box tetris
+    calculateSizeBox();
+
+    animationController = AnimationController(
+        vsync: this, duration: Duration(milliseconds: 1000));
+    //begin & end property
+    animation = Tween<double>(begin: 0, end: 1).animate(animationController)
+      ..addListener(animationLoop);
+
+    animationController.forward();
+  }
+
+  calculateSizeBox() {
+    //sizebox to calculate overall size wich needed for our tetris take place
+    sizeBox = Size(
+      (widget.size.width ~/ widget.sizePerSquare!) * widget.sizePerSquare!,
+      (widget.size.height ~/ widget.sizePerSquare!) * widget.sizePerSquare!,
+    );
+
+    //calculate bases level in game
+    //this one calculate bottom level
+    levelBases = List.generate(sizeBox.width ~/ widget.sizePerSquare!, (index) {
+      return (((sizeBox.height ~/ widget.sizePerSquare!) - 1) *
+              (sizeBox.width ~/ widget.sizePerSquare!)) +
+          index;
+    });
+
+    //calculate left base wall
+    levelBases
+        .addAll(List.generate(sizeBox.height ~/ widget.sizePerSquare!, (index) {
+      return index * (sizeBox.width ~/ widget.sizePerSquare!);
+    }));
+  }
+
+  pauseGame() async {
+    await showDialog(
+        context: context,
+        builder: (BuildContext context) => SimpleDialog(
+              children: [
+                const Text("Pause Game"),
+                ElevatedButton(onPressed: () {}, child: const Text("Resume"))
+              ],
+            ));
+  }
+
+  resetGame() async {
+    await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => SimpleDialog(
+              children: [
+                Text("Reset Game"),
+                ElevatedButton(
+                    onPressed: () {
+                      donePointsValue.value = [];
+                      donePointsValue.notifyListeners();
+                      brickObjectPosValue.value = [];
+                      brickObjectPosValue.notifyListeners();
+                      Navigator.of(context).pop();
+                    },
+                    child: Text("Reset"))
+              ],
+            ));
+  }
+
+  animationLoop() {
+    //check brick length more that 1 for ready current & future brick
+    if (animation.isCompleted && brickObjectPosValue.value.length > 1) {
+      print("nice run ");
+      animationController.reset();
+      animationController.forward();
+    } else {
+      // randomBrick(start: true);
+    }
+  }
+
+  randomBrick({
+    start = false,
+  }) {
+    //start true means to generate 2 random brick, if false we just generate one on time
+    brickObjectPosValue.value.add(getNewBrickPos());
+
+    if (start) {
+      brickObjectPosValue.value.add(getNewBrickPos());
+    }
+    widget.setNextBrick!.call(brickObjectPosValue.value);
+    brickObjectPosValue.notifyListeners();
+  }
+
+  BrickObjectPos getNewBrickPos() {
+    return BrickObjectPos(
+      size: Size.square(widget.sizePerSquare!),
+      sizeLayout: sizeBox,
+      color:
+          Colors.primaries[Random().nextInt(Colors.primaries.length)].shade800,
+      rotation: Random().nextInt(4),
+      offset: Offset(widget.sizePerSquare! * 4, -widget.sizePerSquare! * 3),
+      shapeEnum:
+          BrickShapeEnum.values[Random().nextInt(BrickShapeEnum.values.length)],
+    );
+  }
+
+  @override
+  void dispose() {
+    animation.removeListener(animationLoop);
+    // the object is no longer usable
+    animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.redAccent,
+      child: null,
     );
   }
 }
