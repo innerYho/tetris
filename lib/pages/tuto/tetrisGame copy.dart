@@ -198,7 +198,7 @@ class _TetrisWidgetState extends State<TetrisWidget>
     calculateSizeBox();
 
     animationController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1000));
+        vsync: this, duration: Duration(milliseconds: 1000));
     //begin & end property
     animation = Tween<double>(begin: 0, end: 1).animate(animationController)
       ..addListener(animationLoop);
@@ -226,12 +226,6 @@ class _TetrisWidgetState extends State<TetrisWidget>
         .addAll(List.generate(sizeBox.height ~/ widget.sizePerSquare!, (index) {
       return index * (sizeBox.width ~/ widget.sizePerSquare!);
     }));
-
-    levelBases
-        .addAll(List.generate(sizeBox.height ~/ widget.sizePerSquare!, (index) {
-      return (index * (sizeBox.width ~/ widget.sizePerSquare!)) +
-          (sizeBox.width ~/ widget.sizePerSquare! - 1);
-    })); //31:09
   }
 
   pauseGame() async {
@@ -331,9 +325,6 @@ class _TetrisWidgetState extends State<TetrisWidget>
       alignment: Alignment.center,
       color: Colors.brown,
       child: Container(
-        width: sizeBox.width,
-        height: sizeBox.height,
-        color: Colors.white,
         alignment: Alignment.center,
         child: ValueListenableBuilder(
             valueListenable: donePointsValue,
@@ -344,54 +335,33 @@ class _TetrisWidgetState extends State<TetrisWidget>
                       (context, List<BrickObjectPos> brickObjectPoses, child) {
                     return Stack(
                       children: [
-                        //Generate box show our grid
+                        //generate box show our grid
                         ...List.generate(
-                          sizeBox.width ~/
-                              widget.sizePerSquare! *
-                              sizeBox.height ~/
-                              widget.sizePerSquare!,
-                          (index) {
-                            return Positioned(
-                              left: index %
-                                  (sizeBox.width / widget.sizePerSquare!) *
-                                  widget.sizePerSquare!,
-                              top: index ~/
-                                  (sizeBox.width / widget.sizePerSquare!) *
-                                  widget.sizePerSquare!,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  //cuadricula
-                                  color: checkIndexHitBase(index)
-                                      ? Colors.black87
-                                      : Colors.transparent,
-                                  border: Border.all(width: 1.0),
-                                ),
-                                width: widget.sizePerSquare!,
-                                height: widget.sizePerSquare!,
+                            sizeBox.width ~/
+                                widget.sizePerSquare! *
+                                sizeBox.height ~/
+                                widget.sizePerSquare!, (index) {
+                          return Positioned(
+                            left: index %
+                                (sizeBox.width / widget.sizePerSquare!) *
+                                widget.sizePerSquare!,
+                            top: index ~/
+                                (sizeBox.width / widget.sizePerSquare!) *
+                                widget.sizePerSquare!,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                //la cuadricula
+                                // color: Colors.red,
+                                color: checkIndexHitBase(index) //40
+                                    ? Colors.red
+                                    : Colors.transparent,
+                                border: Border.all(width: 1),
                               ),
-                            );
-                          },
-                        ).toList(),
-// lets show bricks
-                        if (brickObjectPoses.length > 1)
-                          ...brickObjectPoses
-                              .where((element) => !element.isDone)
-                              .toList()
-                              .asMap()
-                              .entries
-                              .map(
-                                (e) => Positioned(
-                                  child: BrickShape(
-                                    BrickShapeStatic.getListBrickOnEnum(
-                                      e.value.shapeEnum,
-                                      direction: e.value.rotation,
-                                    ),
-                                    sizePerSquare: widget.sizePerSquare!,
-                                    points: e.value.pointArray,
-                                    color: e.value.color,
-                                  ),
-                                ),
-                              ),
+                              width: widget.sizePerSquare!,
+                              height: widget.sizePerSquare!,
+                            ),
+                          );
+                        })
                       ],
                     );
                   });
